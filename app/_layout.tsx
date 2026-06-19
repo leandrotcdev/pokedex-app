@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, LogBox } from 'react-native';
-import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-router';
+import { Stack, useRouter, useRootNavigationState, usePathname } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { usePokedexStore } from '../src/store/usePokedexStore';
 import ToastFeedback from '../src/components/ToastFeedback';
@@ -34,30 +34,30 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const { isAuthenticated } = usePokedexStore();
-  const segments = useSegments();
+  const pathname = usePathname(); // Captura o caminho exato atual (ex: "/" ou "/details/25")
   const router = useRouter();
   const rootNavigationState = useRootNavigationState();
 
+  // MOTOR DE PROTEÇÃO DE ROTAS BLINDADO
   useEffect(() => {
-    // A. Verifica se o navegador/sistema de rotas está pronto
+    // Só age quando o sistema de navegação nativo do Expo estiver 100% pronto
     if (!rootNavigationState?.key) return;
 
-    // B. Verifica onde o usuário está
-    const inAuthGroup = segments[0] === '(tabs)';
+    // Se a rota for exatamente "/", o usuário está na tela de Login
+    const isLoginPage = pathname === '/';
 
-    // C. Lógica de Redirecionamento com delay mínimo para garantir leitura do Storage
     const timer = setTimeout(() => {
-      if (!isAuthenticated && inAuthGroup) {
-        // Usuário não autenticado tentando acessar app -> Login
+      if (!isAuthenticated && !isLoginPage) {
+        // Se NÃO está logado e tentou ir para QUALQUER tela interna -> Redireciona para o Login
         router.replace('/');
-      } else if (isAuthenticated && !inAuthGroup) {
-        // Usuário autenticado tentando acessar Login -> App
+      } else if (isAuthenticated && isLoginPage) {
+        // Se JÁ está logado e caiu na tela de Login -> Pula direto para a Pokédex
         router.replace('/(tabs)/PokemonList');
       }
-    }, 100); // Adicionado 100ms para permitir a hidratação do persist
+    }, 150); // 150ms seguros para o Zustand hidratar o banco local
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, segments, rootNavigationState?.key]);
+  }, [isAuthenticated, pathname, rootNavigationState?.key]);
 
   return (
     <QueryClientProvider client={queryClient}>

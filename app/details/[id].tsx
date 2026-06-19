@@ -11,7 +11,6 @@ import * as Speech from 'expo-speech';
 // Importação condicional esegura do Head (Apenas se for Web)
 const Head = Platform.OS === 'web' ? require('expo-router/head').default : (() => null);
 
-
 const BASE_URL = "https://pokeapi.co/api/v2/pokemon";
 const SPECIES_URL = "https://pokeapi.co/api/v2/pokemon-species";
 
