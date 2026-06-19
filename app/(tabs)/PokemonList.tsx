@@ -189,28 +189,20 @@ export default function PokemonList() {
     });
 
     const pokemonsExibidos = useMemo(() => {
-        let listaBruta: LocalPokemon[] = [];
-        if (debouncedSearch !== '') listaBruta = searchResult || [];
-        else if (filtroAtivo !== 'Todos') listaBruta = typeData?.pages.flatMap(p => p.details) || [];
-        else listaBruta = generalData?.pages.flatMap(p => p.details) || [];
+        let listaBase: LocalPokemon[] = filtroAtivo !== 'Todos' ? typeData?.pages.flatMap(p => p.details) || []
+        : generalData?.pages.flatMap(p => p.details) || [];
 
-        // Remove duplicatas em tempo real para não quebrar o Fabric Engine da FlatList
-        const idsVistos = new Set();
-        return listaBruta.filter(pokemon => {
-            if (!pokemon || !pokemon.id || idsVistos.has(pokemon.id)) return false;
-            idsVistos.add(pokemon.id);
-            return true;
-        });
-    }, [debouncedSearch, filtroAtivo, searchResult, typeData, generalData]);
+        const seen = new Set();
+        let listaFiltrada = listaBase.filter(p => seen.has(p.id) ? false : (seen. add(p.id), true)).map(p => ({ ...p }));
 
-    const isLoading = isLoadingType || isLoadingGeneral || isSearching;
-    const isCarregandoMais = isFetchingNextType || isFetchingNextGeneral;
+        if (search.trim() !== '') {
+            const termoBusca = search.toLowerCase().trim();
+            listaFiltrada = listaFiltrada.filter(pokemon => pokemon.nome.toLowerCase().includes(termoBusca) || pokemon.id.toString() === termoBusca);
+        }
+        
+        return listaFiltrada;
 
-    const carregarMais = () => {
-        if (debouncedSearch !== '' || isCarregandoMais) return;
-        if (filtroAtivo !== 'Todos' && hasNextTypePage) fetchNextTypePage();
-        if (filtroAtivo === 'Todos' && hasNextGeneralPage) fetchNextGeneralPage();
-    };
+    }, [search, filtroAtivo, typeData, generalData]);
 
     const navigatingRef = useRef(false);
     const handleNavigate = useCallback((id: number) => {
@@ -231,6 +223,15 @@ export default function PokemonList() {
             />
         );
     }, [favorites, handleNavigate, toggleFavorite]);
+
+    const isLoading = isLoadingType || isLoadingGeneral || isSearching;
+    const isCarregandoMais = isFetchingNextType || isFetchingNextGeneral;
+
+    const carregarMais = () => {
+        if (debouncedSearch !== '' || isCarregandoMais) return;
+        if (filtroAtivo !== 'Todos' && hasNextTypePage) fetchNextTypePage();
+        if (filtroAtivo === 'Todos' && hasNextGeneralPage) fetchNextGeneralPage();
+    };
 
     return (
         <SafeAreaView style={styles.container}>
