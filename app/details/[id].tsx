@@ -112,7 +112,7 @@ export default function PokemonDetails() {
                 hp: data.stats.find((s: any) => s.stat.name === 'hp')?.base_stat || 0,
                 ataque: data.stats.find((s: any) => s.stat.name === 'ataque')?.base_stat || 0,
                 defesa: data.stats.find((s: any) => s.stat.name === 'defesa')?.base_stat || 0,
-                velocidade: data.stats.find((s: any) => s.stat.name === 'velocidade')?.base_stat || 0,
+                velocidade: data.stats.find((s: any) => s.stat.name === 'speed')?.base_stat || 0,
             };
 
             const pokemonMapeado: DetalhesPokemon = {
