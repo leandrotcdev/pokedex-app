@@ -244,10 +244,12 @@ export default function PokemonList() {
                     <Search size={20} color="#888" style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Ex: Pikachu ou 25"
+                        placeholder="Buscar por letra ou número... Ex: Pikachu ou 25"
                         placeholderTextColor="#888"
                         value={search}
                         onChangeText={setSearch}
+                        autoCapitalize="none"
+                        autoCorrect={false}
                     />
                 </View>
             </View>
