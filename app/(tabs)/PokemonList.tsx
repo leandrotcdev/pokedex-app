@@ -78,23 +78,21 @@ export default function PokemonList() {
 
     const router = useRouter();
 
-    const { favorites, toggleFavorite, theme, language, toggleLanguage, toggleTheme } = usePokedexStore();
+    const { favorites = [], toggleFavorite, theme, toggleTheme, language, toggleLanguage } = usePokedexStore() || {};
     const favoritesSet = useMemo(() => new Set(favorites.map(f => f.id)), [favorites]);
+
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filtroAtivo, setFiltroAtivo] = useState('all');
 
     const isDark = theme === 'dark';
-    const colors = {
-        bg: isDark ? '#222' : '#F0F0F0',
-        text: isDark ? '#FFF' : '#000',
-        cardBox: isDark ? '#333' : '#FFF',
-        border: '#000',
-    };
+    const colors = { bg: isDark ? '#222' : '#F0F0F0', text: isDark ? '#FFF' : '#000', cardBox: isDark ? '#333' : '#FFF' };
 
-    const tLista = dicionario[language].lista;
-    const tTipos = dicionario[language].tipos;
-    const tComum = dicionario[language].comum;
+    const safeLanguage = language || 'pt'; // Se a memória estiver vazia/carregando, usa 'pt'
+
+    const tLista = dicionario[safeLanguage]?.lista || dicionario['pt'].lista;
+    const tTipos = dicionario[safeLanguage]?.tipos || dicionario['pt'].tipos;
+    const tComum = dicionario[safeLanguage]?.comum || dicionario['pt'].comum;
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -164,7 +162,6 @@ export default function PokemonList() {
             return JSON.parse(JSON.stringify(searchResults || []));
         }
 
-
         let listaBase = filtroAtivo !== 'all' ? typeData?.pages.flatMap(p => p.details || []) ?? [] : generalData?.pages.flatMap(p => p.details || []) ?? [];
         const seen = new Set();
         let listaFiltrada = listaBase.filter(p => !seen.has(p.id) && seen.add(p.id));
@@ -178,6 +175,12 @@ export default function PokemonList() {
 
     const isLoading = debouncedSearch !== '' ? isSearchingApi : (filtroAtivo !== 'all' ? il1 : il2);
     const isCarregandoMais = debouncedSearch !== '' ? false : (filtroAtivo !== 'all' ? if1 : if2);
+
+    const carregarMais = useCallback(() => {
+        if (isCarregandoMais || debouncedSearch.trim() !== '') return;
+        if (filtroAtivo !== 'all' && h1) f1();
+        if (filtroAtivo === 'all' && h2) f2();
+    }, [isCarregandoMais, debouncedSearch, filtroAtivo, h1, f1, h2, f2]);
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -230,24 +233,24 @@ export default function PokemonList() {
                 </View>
             ) : (
                 <FlatList
-                    data={JSON.parse(JSON.stringify(pokemonsExibidos))}
+                    key={isDark ? 'dark' : 'light'}
+                    data={pokemonsExibidos}
                     keyExtractor={(item) => String(item.id)}
                     renderItem={renderItem}
                     numColumns={2}
-                    columnWrapperStyle={styles.row}
-                    contentContainerStyle={styles.listContent}
-                    onEndReached={() => {
-                        if (isCarregandoMais || search.trim() !== '') return;
-                        filtroAtivo !== 'all' ? f1() : f2();
+                    columnWrapperStyle={{
+                        justifyContent: 'space-between',
+                        paddingHorizontal: 10,
+                        marginBottom: 20
                     }}
+                    contentContainerStyle={{
+                        paddingBottom: 40
+                    }}
+                    removeClippedSubviews={false}
+
+                    onEndReached={carregarMais}
                     onEndReachedThreshold={0.4}
                     showsVerticalScrollIndicator={false}
-                    ListFooterComponent={isCarregandoMais ? <ActivityIndicator size="large" color={colors.text} style={{ marginVertical: 20 }} /> : null}
-                    ListEmptyComponent={
-                        <View style={styles.retroEmptyBox}>
-                            <Text style={[styles.retroEmptyText, { color: colors.text }]}>! {tLista.vazio.toUpperCase()}</Text>
-                        </View>
-                    }
                 />
             )}
         </SafeAreaView>

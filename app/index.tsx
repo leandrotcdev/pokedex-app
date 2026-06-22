@@ -5,12 +5,18 @@ import { usePokedexStore } from '../src/store/usePokedexStore';
 import { dicionario } from '../src/utils/translations';
 
 export default function LoginScreen() {
-    // Estado Global e Traduções
-    const { login, theme, toggleTheme, language, toggleLanguage } = usePokedexStore();
-    const t = dicionario[language].login;
+
+    const store = usePokedexStore();
+
+    const login = store?.login;
+    const theme = store?.theme || 'light';
+    const toggleTheme = store?.toggleTheme;
+    const language = store?.language || 'pt';
+    const toggleLanguage = store?.toggleLanguage;
+
+    const t = dicionario[language]?.login || dicionario['pt'].login;
     const isDark = theme === 'dark';
 
-    // Estados Locais
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [erro, setErro] = useState<string | null>(null);

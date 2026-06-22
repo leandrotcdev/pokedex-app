@@ -24,22 +24,34 @@ const coresTipos: Record<string, string> = {
 export default function PokemonDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
-    const { favorites, toggleFavorite, language, toggleLanguage, theme, toggleTheme } = usePokedexStore();
+    
+    const { 
+        favorites = [], 
+        toggleFavorite, 
+        language, 
+        theme, 
+        toggleTheme, 
+        toggleLanguage 
+    } = usePokedexStore() || {};
 
     const [pokemon, setPokemon] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isSpeaking, setIsSpeaking] = useState(false);
 
-    const tTipos = dicionario[language].tipos;
+    const safeLanguage = language || 'pt';
+
+    const dict = dicionario[safeLanguage] || dicionario['pt'];
+    const tTipos = dict.tipos || {};
+
     const isDark = theme === 'dark';
     const isFavorite = favorites.some((p) => p.id === Number(id));
 
     const gbScreenBg = isDark ? '#0F380F' : '#9BBC0F';
     const gbText = isDark ? '#9BBC0F' : '#0F380F';
 
-    const labelPeso = language === 'pt' ? 'PESO' : 'WGT';
-    const labelAlt = language === 'pt' ? 'ALTURA' : 'HGT';
-    const btnAudio = language === 'pt' ? 'OUVIR POKÉDEX' : 'PLAY POKÉDEX';
+    const labelPeso = safeLanguage === 'pt' ? 'PESO' : 'WGT';
+    const labelAlt = safeLanguage === 'pt' ? 'ALTURA' : 'HGT';
+    const btnAudio = safeLanguage === 'pt' ? 'OUVIR POKÉDEX' : 'PLAY POKÉDEX';
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -60,20 +72,21 @@ export default function PokemonDetails() {
             return;
         }
 
+        // 🛡️ Uso do tTipos blindado
         const tiposTraduzidos = pokemon.types
             .map((t: any) => tTipos[t.type.name as keyof typeof tTipos] || t.type.name)
-            .join(language === 'pt' ? ' e ' : ' and ');
+            .join(safeLanguage === 'pt' ? ' e ' : ' and ');
 
         const peso = pokemon.weight / 10;
         const altura = pokemon.height / 10;
 
-        const texto = language === 'pt'
+        const texto = safeLanguage === 'pt'
             ? `${pokemon.name}. Pokémon do tipo ${tiposTraduzidos}. Peso: ${peso} quilos. Altura: ${altura} metros.`
             : `${pokemon.name}. ${tiposTraduzidos} type Pokémon. Weight: ${peso} kilograms. Height: ${altura} meters.`;
 
         setIsSpeaking(true);
         Speech.speak(texto, {
-            language: language === 'pt' ? 'pt-BR' : 'en-US',
+            language: safeLanguage === 'pt' ? 'pt-BR' : 'en-US',
             pitch: 1.1,
             rate: 0.9,
             onDone: () => setIsSpeaking(false),
@@ -81,7 +94,6 @@ export default function PokemonDetails() {
         });
     };
 
-    // Desliga o áudio automaticamente se o usuário sair da tela
     useEffect(() => {
         return () => { Speech.stop(); };
     }, []);
