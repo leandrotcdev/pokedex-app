@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { View, Text, FlatList, TextInput, Image, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Heart, Languages } from 'lucide-react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { usePokedexStore } from '../../src/store/usePokedexStore';
 import { dicionario } from '../../src/utils/translations';
 
@@ -78,9 +78,10 @@ export default function PokemonList() {
 
     const router = useRouter();
 
-    const { favorites, toggleFavorite, theme, language, toggleLanguage } = usePokedexStore();
+    const { favorites, toggleFavorite, theme, language, toggleLanguage, toggleTheme } = usePokedexStore();
     const favoritesSet = useMemo(() => new Set(favorites.map(f => f.id)), [favorites]);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filtroAtivo, setFiltroAtivo] = useState('all');
 
     const isDark = theme === 'dark';
@@ -95,13 +96,59 @@ export default function PokemonList() {
     const tTipos = dicionario[language].tipos;
     const tComum = dicionario[language].comum;
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search.trim());
+        }, 400);
+
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    const { data: masterList } = useQuery({
+        queryKey: ['masterPokemonList'],
+        queryFn: async () => {
+            const res = await axios.get(`${BASE_URL}/pokemon?limit=12000`);
+            return res.data.results.map((p: any) => {
+                const parts = p.url.split('/').filter(Boolean);
+                return { name: p.name, url: p.url, id: parseInt(parts[parts.length - 1], 10) };
+            });
+        },
+        staleTime: Infinity,
+    });
+
+    const searchMatches = useMemo(() => {
+        if (!debouncedSearch || !masterList) return null;
+        const termo = debouncedSearch.toLowerCase().trim();
+
+        return masterList
+            .filter((p: { name: string; id: { toString: () => string; } | null; }) => {
+
+                if (!p || !p.name) return false;
+
+                const matchName = p.name.toLowerCase().includes(termo);
+                const matchId = p.id != null && p.id.toString().toLowerCase() === termo;
+
+                return matchName || matchId;
+            })
+            .slice(0, 20);
+    }, [debouncedSearch, masterList]);
+
+    const { data: searchResults, isFetching: isSearchingApi } = useQuery({
+        queryKey: ['searchResults', searchMatches?.map((m: { id: any; }) => m.id).join(',')],
+        queryFn: async () => {
+            if (!searchMatches || searchMatches.length === 0) return [];
+            return fetchDetailsFromUrls(searchMatches.map((m: { url: any; }) => m.url));
+        },
+        enabled: !!searchMatches && searchMatches.length > 0,
+    });
+
     const { data: typeData, fetchNextPage: f1, hasNextPage: h1, isFetchingNextPage: if1, isLoading: il1 } = useInfiniteQuery({
         queryKey: ['pokemonType', filtroAtivo], initialPageParam: 0,
         queryFn: async ({ pageParam }) => {
             const res = await axios.get(`${BASE_URL}/type/${filtroAtivo}`);
             const slice = res.data.pokemon.map((p: any) => p.pokemon.url).slice((pageParam as number) * 20, ((pageParam as number) + 1) * 20);
             return { details: await fetchDetailsFromUrls(slice), next: slice.length === 20 ? (pageParam as number) + 1 : undefined };
-        }, getNextPageParam: (l) => l.next, enabled: filtroAtivo !== 'all',
+        }, getNextPageParam: (l) => l.next, enabled: filtroAtivo !== 'all' && debouncedSearch === '',
     });
 
     const { data: generalData, fetchNextPage: f2, hasNextPage: h2, isFetchingNextPage: if2, isLoading: il2 } = useInfiniteQuery({
@@ -109,41 +156,43 @@ export default function PokemonList() {
         queryFn: async ({ pageParam }) => {
             const res = await axios.get(pageParam as string);
             return { details: await fetchDetailsFromUrls(res.data.results.map((p: any) => p.url)), next: res.data.next };
-        }, getNextPageParam: (l) => l.next || undefined, enabled: filtroAtivo === 'all',
+        }, getNextPageParam: (l) => l.next || undefined, enabled: filtroAtivo === 'all' && debouncedSearch === '',
     });
 
     const pokemonsExibidos = useMemo(() => {
+        if (debouncedSearch !== '') {
+            return JSON.parse(JSON.stringify(searchResults || []));
+        }
+
+
         let listaBase = filtroAtivo !== 'all' ? typeData?.pages.flatMap(p => p.details || []) ?? [] : generalData?.pages.flatMap(p => p.details || []) ?? [];
         const seen = new Set();
         let listaFiltrada = listaBase.filter(p => !seen.has(p.id) && seen.add(p.id));
-        if (search.trim() !== '') {
-            const termo = search.toLowerCase().trim();
-            listaFiltrada = listaFiltrada.filter(p => p.nome.toLowerCase().includes(termo) || p.id.toString().includes(termo));
-        }
+
         return JSON.parse(JSON.stringify(listaFiltrada));
-    }, [search, filtroAtivo, typeData, generalData]);
+    }, [debouncedSearch, searchResults, filtroAtivo, typeData, generalData]);
 
     const renderItem = useCallback(({ item }: { item: LocalPokemon }) => (
         <PokemonCard item={item} isFavorite={favoritesSet.has(item.id)} onPress={() => router.push(`/details/${item.id}`)} onToggleFavorite={() => toggleFavorite({ id: item.id, nome: item.nome, imagemDestaque: item.imagemDestaque })} tTipos={tTipos} colors={colors} />
     ), [favoritesSet, router, toggleFavorite, tTipos, colors]);
 
-    const isLoading = filtroAtivo !== 'all' ? il1 : il2;
-    const isCarregandoMais = filtroAtivo !== 'all' ? if1 : if2;
-
-    const carregarMais = () => {
-        if (isCarregandoMais || search.trim() !== '') return;
-        if (filtroAtivo !== 'all' && h1) f1();
-        if (filtroAtivo === 'all' && h2) f2();
-    };
+    const isLoading = debouncedSearch !== '' ? isSearchingApi : (filtroAtivo !== 'all' ? il1 : il2);
+    const isCarregandoMais = debouncedSearch !== '' ? false : (filtroAtivo !== 'all' ? if1 : if2);
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+            <View style={styles.retroTopBar}>
+                <TouchableOpacity style={styles.retroBtnSmall} onPress={toggleLanguage} activeOpacity={0.8}>
+                    <Text style={styles.retroBtnTextSmall}>{language === 'pt' ? 'SELECT: EN' : 'SELECT: PT'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.retroBtnSmall} onPress={toggleTheme} activeOpacity={0.8}>
+                    <Text style={styles.retroBtnTextSmall}>{isDark ? 'START: LIGHT' : 'START: DARK'}</Text>
+                </TouchableOpacity>
+            </View>
+
             <View style={styles.retroHeader}>
                 <View style={styles.headerTop}>
                     <Text style={styles.retroTitle}>{tComum.pokedex.toUpperCase()}</Text>
-                    <TouchableOpacity style={styles.retroBtnSmall} onPress={toggleLanguage}>
-                        <Text style={styles.retroBtnTextSmall}>{language === 'pt' ? 'SELECT: PT' : 'SELECT: EN'}</Text>
-                    </TouchableOpacity>
                 </View>
                 <TextInput
                     style={styles.retroInput}
@@ -176,24 +225,27 @@ export default function PokemonList() {
 
             {isLoading && pokemonsExibidos.length === 0 ? (
                 <View style={styles.centerContainer}>
-                    <ActivityIndicator size="large" color="#000" />
+                    <ActivityIndicator size="large" color={colors.text} />
                     <Text style={[styles.retroSectionTitle, { marginTop: 12, color: colors.text }]}>{tLista.carregando.toUpperCase()}</Text>
                 </View>
             ) : (
                 <FlatList
-                    data={pokemonsExibidos}
+                    data={JSON.parse(JSON.stringify(pokemonsExibidos))}
                     keyExtractor={(item) => String(item.id)}
                     renderItem={renderItem}
                     numColumns={2}
                     columnWrapperStyle={styles.row}
                     contentContainerStyle={styles.listContent}
-                    onEndReached={carregarMais}
+                    onEndReached={() => {
+                        if (isCarregandoMais || search.trim() !== '') return;
+                        filtroAtivo !== 'all' ? f1() : f2();
+                    }}
                     onEndReachedThreshold={0.4}
                     showsVerticalScrollIndicator={false}
-                    ListFooterComponent={isCarregandoMais ? <ActivityIndicator size="large" color="#000" style={{ marginVertical: 20 }} /> : null}
+                    ListFooterComponent={isCarregandoMais ? <ActivityIndicator size="large" color={colors.text} style={{ marginVertical: 20 }} /> : null}
                     ListEmptyComponent={
                         <View style={styles.retroEmptyBox}>
-                            <Text style={styles.retroEmptyText}>! {tLista.vazio.toUpperCase()}</Text>
+                            <Text style={[styles.retroEmptyText, { color: colors.text }]}>! {tLista.vazio.toUpperCase()}</Text>
                         </View>
                     }
                 />
@@ -205,6 +257,7 @@ export default function PokemonList() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    retroTopBar: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10, gap: 10 },
     retroHeader: {
         backgroundColor: '#DC0A2D',
         padding: 20,

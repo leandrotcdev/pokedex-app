@@ -57,10 +57,10 @@ export default function LoginScreen() {
                     {/* BOTÕES SELECT / START (Idioma e Tema) */}
                     <View style={styles.retroTopBar}>
                         <TouchableOpacity style={styles.retroBtnSmall} onPress={toggleLanguage} activeOpacity={0.8}>
-                            <Text style={styles.retroBtnTextSmall}>{language === 'pt' ? 'SELECT: PT' : 'SELECT: EN'}</Text>
+                            <Text style={styles.retroBtnTextSmall}>{language === 'pt' ? 'SELECT: EN' : 'SELECT: PT'}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.retroBtnSmall} onPress={toggleTheme} activeOpacity={0.8}>
-                            <Text style={styles.retroBtnTextSmall}>{isDark ? 'START: DARK' : 'START: LIGHT'}</Text>
+                            <Text style={styles.retroBtnTextSmall}>{isDark ? 'START: LIGHT' : 'START: DARK'}</Text>
                         </TouchableOpacity>
                     </View>
 

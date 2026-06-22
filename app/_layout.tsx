@@ -28,8 +28,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 2,
       staleTime: 1000 * 60 * 5,
-      // Isso permite que a FlatList injete as propriedades nativas do Android sem crashear.
-      structuralSharing: false,
+      structuralSharing: false, // ESSA LINHA É OBRIGATÓRIA PARA O ANDROID NÃO CRASHAR
     },
   },
 });
