@@ -4,58 +4,56 @@ import { Home, Heart } from 'lucide-react-native';
 import { usePokedexStore } from '../../src/store/usePokedexStore';
 import { Platform } from 'react-native';
 
+const retroFont = Platform.OS === 'ios' ? 'Courier' : 'monospace';
+
 export default function TabsLayout() {
-    const { theme } = usePokedexStore();
-    const isDark = theme === 'dark';
+  const { theme, language } = usePokedexStore();
+  const isDark = theme === 'dark';
 
-    const cores = {
-        bg: isDark ? '#1E1E1E' : '#FFFFFF',
-        active: '#CC0000',
-        inactive: isDark ? '#888888' : '#AAAAAA',
-        border: isDark ? '#333333' : '#EAEAEA'
-    };
+  const tabBg = isDark ? '#111111' : '#FFFFFF';
+  const borderTop = isDark ? '#444444' : '#000000';
+  const activeColor = '#DC0A2D';
+  const inactiveColor = isDark ? '#888888' : '#AAAAAA';
 
-    return (
-        <Tabs
-            screenOptions={{
-                headerShown: false,
-                tabBarStyle: {
-                    backgroundColor: cores.bg,
-                    borderTopColor: cores.border,
-                    height: 65,
-                    paddingBottom: 10,
-                    paddingTop: 5,
-                    elevation: 8,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: -2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    ...Platform.select({
-                        web: { boxShadow: '0px -2px 8px rgba(0,0,0,0.05)' }
-                    })
-                },
-                tabBarActiveTintColor: cores.active,
-                tabBarInactiveTintColor: cores.inactive,
-                tabBarLabelStyle: { fontSize: 12, fontWeight: 'bold' }
-            }}
-        >
-            <Tabs.Screen
-                name="PokemonList"
-                options={{
-                    title: 'Pokédex',
-                    tabBarLabel: 'Início',
-                    tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-                }}
-            />
+  const labelLista = language === 'pt' ? '[ LISTA ]' : '[ LIST ]';
+  const labelFavs = language === 'pt' ? '[ FAVS ]' : '[ FAVS ]';
 
-            <Tabs.Screen
-                name="favorites"
-                options={{
-                    title: 'Meus Favoritos',
-                    tabBarLabel: 'Favoritos',
-                    tabBarIcon: ({ color, size }) => <Heart size={size} color={color} />,
-                }}
-            />
-        </Tabs>
-    );
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: tabBg,
+          borderTopWidth: 5,
+          borderColor: borderTop,
+          height: 65,
+          paddingBottom: 10,
+          paddingTop: 10,
+        },
+        tabBarActiveTintColor: activeColor,
+        tabBarInactiveTintColor: inactiveColor,
+        tabBarLabelStyle: {
+          fontFamily: retroFont,
+          fontWeight: '900',
+          fontSize: 11,
+          marginTop: 4,
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="PokemonList"
+        options={{
+          title: labelLista,
+          tabBarIcon: ({ color }) => <Home color={color} size={26} strokeWidth={2.5} />,
+        }}
+      />
+      <Tabs.Screen
+        name="Favorites"
+        options={{
+          title: labelFavs,
+          tabBarIcon: ({ color }) => <Heart color={color} size={26} strokeWidth={2.5} />,
+        }}
+      />
+    </Tabs>
+  );
 }

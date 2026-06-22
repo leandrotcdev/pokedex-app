@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage, devtools } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { dicionario } from '../utils/translations';
 
 export interface MinimalPokemon {
     id: number;
@@ -15,6 +16,10 @@ interface PokedexState {
     userEmail: string | null;
     login: (email: string) => void;
     logout: () => void;
+
+    // IDIOMA
+    language: 'pt' | 'en';
+    toggleLanguage: () => void;
 
     // TEMA
     theme: 'light' | 'dark';
@@ -42,6 +47,7 @@ export const usePokedexStore = create<PokedexState>()(
                 isAuthenticated: false,
                 userEmail: null,
                 theme: 'light',
+                language: 'pt',
                 favorites: [],
                 history: [],
                 toastMessage: null,
@@ -60,27 +66,23 @@ export const usePokedexStore = create<PokedexState>()(
                     history: []
                 }),
 
-                toggleTheme: () => set((state) => ({
-                    theme: state.theme === 'light' ? 'dark' : 'light'
-                })),
+                toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
+                toggleLanguage: () => set((state) => ({ language: state.language === 'pt' ? 'en' : 'pt' })),
 
                 toggleFavorite: (pokemon) => {
-                    const currentFavorites = get().favorites;
-                    const isAlreadyFavorite = currentFavorites.some((p) => p.id === pokemon.id);
+                    const favorites = get().favorites;
+                    const currentLang = get().language;
+                    const t = dicionario[currentLang].store;
 
-                    if (isAlreadyFavorite) {
-                        set({
-                            favorites: currentFavorites.filter((p) => p.id !== pokemon.id),
-                            toastMessage: `${pokemon.nome} removido dos favoritos!`,
-                            visibleToast: true
-                        });
-                    } else {
-                        set({
-                            favorites: [...currentFavorites, pokemon],
-                            toastMessage: `${pokemon.nome} adicionado aos favoritos!`,
-                            visibleToast: true
-                        });
-                    }
+                    const isFav = favorites.some((p) => p.id === pokemon.id);
+
+                    set({
+                        favorites: isFav ? favorites.filter((p) => p.id !== pokemon.id) : [...favorites, pokemon],
+                        toastMessage: isFav
+                            ? `${pokemon.nome} ${t.removido}`
+                            : `${pokemon.nome} ${t.salvo}`,
+                        visibleToast: true
+                    });
                 },
 
                 addToHistory: (pokemon) => {
@@ -96,12 +98,14 @@ export const usePokedexStore = create<PokedexState>()(
             {
                 name: 'pokedex-storage',
                 storage: createJSONStorage(() => AsyncStorage),
-                partialize: (state) => ({ isAuthenticated: state.isAuthenticated, userEmail: state.userEmail, theme: state.theme, favorites: state.favorites, history: state.history }),
+                // theme e language estão no partialize para salvar no celular
+                partialize: (state) => ({
+                    theme: state.theme,
+                    language: state.language,
+                    favorites: state.favorites
+                }),
             }
         ),
-        {
-            name: 'PokedexStore',
-            enabled: Platform.OS === 'web'
-        }
+        { name: 'PokedexStore', enabled: Platform.OS === 'web' }
     )
 );

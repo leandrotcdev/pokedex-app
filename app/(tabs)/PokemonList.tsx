@@ -1,14 +1,16 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import { Pressable } from 'react-native';
-import { View, Text, FlatList, TextInput, Image, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, FlatList, TextInput, Image, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Pressable, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Search, Heart } from 'lucide-react-native';
+import { Heart, Languages } from 'lucide-react-native';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { usePokedexStore } from '../../src/store/usePokedexStore';
+import { dicionario } from '../../src/utils/translations';
 
 const BASE_URL = "https://pokeapi.co/api/v2";
+
+const retroFont = Platform.OS === 'ios' ? 'Courier' : 'monospace';
 
 interface LocalPokemon {
     id: number;
@@ -25,72 +27,46 @@ const coresTipos: Record<string, string> = {
     ghost: '#705898', ice: '#98D8D8', dragon: '#7038F8', dark: '#705848', steel: '#B8B8D0',
 };
 
-const mapaTiposEn: Record<string, string> = {
-    'Normal': 'normal', 'Fogo': 'fire', 'Água': 'water', 'Elétrico': 'electric',
-    'Planta': 'grass', 'Gelo': 'ice', 'Lutador': 'fighting', 'Venenoso': 'poison',
-    'Terra': 'ground', 'Voador': 'flying', 'Psíquico': 'psychic', 'Inseto': 'bug',
-    'Pedra': 'rock', 'Fantasma': 'ghost', 'Dragão': 'dragon', 'Sombrio': 'dark',
-    'Aço': 'steel', 'Fada': 'fairy'
-};
-
-const tiposFiltro = ['Todos', ...Object.keys(mapaTiposEn)];
+const tiposFiltroKeys = [
+    'all', 'normal', 'fire', 'water', 'electric', 'grass', 'ice',
+    'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug',
+    'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy'
+];
 
 const fetchDetailsFromUrls = async (urls: string[]): Promise<LocalPokemon[]> => {
     try {
-        const requests = urls.map(url => axios.get(url));
-        const responses = await Promise.all(requests);
-
-        return responses.map(res => {
-            const tipos = res.data.types.map((t: any) => t.type.name);
-            return {
-                id: res.data.id,
-                nome: res.data.name,
-                imagemDestaque: res.data.sprites.other['official-artwork'].front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${res.data.id}.png`,
-                corFundo: coresTipos[tipos[0]] || '#A8A878',
-                tipos,
-            };
-        });
-    } catch (error) {
-        console.error('Erro ao buscar detalhes:', error);
-        return [];
-    }
+        const responses = await Promise.all(urls.map(url => axios.get(url)));
+        return responses.map(res => ({
+            id: res.data.id,
+            nome: res.data.name,
+            imagemDestaque: res.data.sprites.other['official-artwork'].front_default || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${res.data.id}.png`,
+            corFundo: coresTipos[res.data.types[0].type.name] || '#A8A878',
+            tipos: res.data.types.map((t: any) => t.type.name),
+        }));
+    } catch (error) { return []; }
 };
 
-interface PokemonCardProps {
-    item: LocalPokemon;
-    isFavorite: boolean;
-    onPress: () => void;
-    onToggleFavorite: () => void;
-}
-
-const PokemonCard = React.memo(({ item, onPress, isFavorite, onToggleFavorite }: PokemonCardProps) => (
-    <Pressable
-        style={[styles.cardContainer, { backgroundColor: item.corFundo }]}
-        android_ripple={{ color: 'rgba(0,0,0,0.05)' }}
-        onPress={onPress}
-    >
-        <View style={styles.cardHeader}>
-            <Text style={styles.pokemonId}>#{item.id.toString().padStart(3, '0')}</Text>
-            <Pressable
-                style={styles.heartButton}
-                onPress={(e) => {
-                    e.stopPropagation(); // Trava a propagação do clique para o card pai
-                    onToggleFavorite();
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-                <Heart size={20} color={isFavorite ? "#DC0A2D" : "#FFF"} fill={isFavorite ? "#DC0A2D" : "transparent"} />
+const PokemonCard = React.memo(({ item, isFavorite, onPress, onToggleFavorite, tTipos, colors }: any) => (
+    <Pressable style={[styles.retroCard, { backgroundColor: item.corFundo }]} onPress={onPress}>
+        <View style={styles.retroCardHeader}>
+            <Text style={styles.retroId}>No.{item.id.toString().padStart(3, '0')}</Text>
+            <Pressable style={styles.retroHeartBtn} onPress={(e) => { e.stopPropagation(); onToggleFavorite(); }}>
+                <Heart size={18} color="#000" fill={isFavorite ? "#DC0A2D" : "transparent"} />
             </Pressable>
         </View>
 
-        <Image source={{ uri: item.imagemDestaque }} style={styles.pokemonImage} resizeMode="contain" />
+        <View style={styles.retroImageContainer}>
+            <Image source={{ uri: item.imagemDestaque }} style={styles.pokemonImage} resizeMode="contain" />
+        </View>
 
-        <View style={styles.cardInfoBox}>
-            <Text style={styles.pokemonName}>{item.nome}</Text>
+        <View style={[styles.retroCardInfo, { backgroundColor: colors.cardBox }]}>
+            <Text style={[styles.retroName, { color: colors.text }]} numberOfLines={1}>
+                {item.nome.toUpperCase()}
+            </Text>
             <View style={styles.typesContainer}>
-                {item.tipos.map((tipo, index) => (
-                    <View key={index} style={[styles.typePill, { backgroundColor: coresTipos[tipo] }]}>
-                        <Text style={styles.typeText}>{tipo}</Text>
+                {item.tipos.map((tipo: string, i: number) => (
+                    <View key={i} style={[styles.retroTypePill, { backgroundColor: coresTipos[tipo] || '#777' }]}>
+                        <Text style={styles.retroTypeText}>{tTipos[tipo as keyof typeof tTipos] || tipo.toUpperCase()}</Text>
                     </View>
                 ))}
             </View>
@@ -99,215 +75,125 @@ const PokemonCard = React.memo(({ item, onPress, isFavorite, onToggleFavorite }:
 ));
 
 export default function PokemonList() {
+
     const router = useRouter();
-    const { favorites, toggleFavorite } = usePokedexStore();
 
+    const { favorites, toggleFavorite, theme, language, toggleLanguage } = usePokedexStore();
+    const favoritesSet = useMemo(() => new Set(favorites.map(f => f.id)), [favorites]);
     const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [filtroAtivo, setFiltroAtivo] = useState('Todos');
+    const [filtroAtivo, setFiltroAtivo] = useState('all');
 
-    useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            setDebouncedSearch(search.trim().toLowerCase());
-        }, 500);
-        return () => clearTimeout(delayDebounceFn);
-    }, [search]);
+    const isDark = theme === 'dark';
+    const colors = {
+        bg: isDark ? '#222' : '#F0F0F0',
+        text: isDark ? '#FFF' : '#000',
+        cardBox: isDark ? '#333' : '#FFF',
+        border: '#000',
+    };
 
-    const tipoEmIngles = mapaTiposEn[filtroAtivo];
+    const tLista = dicionario[language].lista;
+    const tTipos = dicionario[language].tipos;
+    const tComum = dicionario[language].comum;
 
-    const { data: searchResult, isFetching: isSearching } = useQuery<LocalPokemon[]>({
-        queryKey: ['pokemonSearch', debouncedSearch],
-        queryFn: async () => {
-            try {
-                const res = await axios.get(`${BASE_URL}/pokemon/${debouncedSearch}`);
-                const tipos = res.data.types.map((t: any) => t.type.name);
-                return [{
-                    id: res.data.id,
-                    nome: res.data.name,
-                    imagemDestaque: res.data.sprites.other['official-artwork'].front_default,
-                    corFundo: coresTipos[tipos[0]] || '#A8A878',
-                    tipos,
-                }];
-            } catch {
-                return [];
-            }
-        },
-        enabled: debouncedSearch !== '',
-        staleTime: 1000 * 60 * 5,
-    });
-
-    // FILTRO POR TIPO (COM PAGINAÇÃO LOCAL)
-    const {
-        data: typeData,
-        fetchNextPage: fetchNextTypePage,
-        hasNextPage: hasNextTypePage,
-        isFetchingNextPage: isFetchingNextType,
-        isLoading: isLoadingType
-    } = useInfiniteQuery({
-        queryKey: ['pokemonType', tipoEmIngles],
-        initialPageParam: 0,
+    const { data: typeData, fetchNextPage: f1, hasNextPage: h1, isFetchingNextPage: if1, isLoading: il1 } = useInfiniteQuery({
+        queryKey: ['pokemonType', filtroAtivo], initialPageParam: 0,
         queryFn: async ({ pageParam }) => {
-            const page = pageParam as number;
-            const res = await axios.get(`${BASE_URL}/type/${tipoEmIngles}`);
-            const allUrls = res.data.pokemon.map((p: any) => p.pokemon.url);
-
-            const slice = allUrls.slice(page * 20, (page + 1) * 20);
-            const details = slice.length > 0 ? await fetchDetailsFromUrls(slice) : [];
-
-            return {
-                details,
-                nextPage: slice.length === 20 ? page + 1 : undefined,
-            };
-        },
-        getNextPageParam: (lastPage) => lastPage.nextPage,
-        enabled: debouncedSearch === '' && filtroAtivo !== 'Todos',
+            const res = await axios.get(`${BASE_URL}/type/${filtroAtivo}`);
+            const slice = res.data.pokemon.map((p: any) => p.pokemon.url).slice((pageParam as number) * 20, ((pageParam as number) + 1) * 20);
+            return { details: await fetchDetailsFromUrls(slice), next: slice.length === 20 ? (pageParam as number) + 1 : undefined };
+        }, getNextPageParam: (l) => l.next, enabled: filtroAtivo !== 'all',
     });
 
-    // LISTAGEM INFINITA PADRÃO ---
-    const {
-        data: generalData,
-        fetchNextPage: fetchNextGeneralPage,
-        hasNextPage: hasNextGeneralPage,
-        isFetchingNextPage: isFetchingNextGeneral,
-        isLoading: isLoadingGeneral
-    } = useInfiniteQuery({
-        queryKey: ['pokemonGeneral'],
-        initialPageParam: `${BASE_URL}/pokemon?limit=20`, // 🚨 OBRIGATÓRIO NA V5: Primeira URL
+    const { data: generalData, fetchNextPage: f2, hasNextPage: h2, isFetchingNextPage: if2, isLoading: il2 } = useInfiniteQuery({
+        queryKey: ['pokemonGeneral'], initialPageParam: `${BASE_URL}/pokemon?limit=20`,
         queryFn: async ({ pageParam }) => {
             const res = await axios.get(pageParam as string);
-            const urls = res.data.results.map((p: any) => p.url);
-            const details = await fetchDetailsFromUrls(urls);
-
-            return {
-                details,
-                nextUrl: res.data.next,
-            };
-        },
-
-        getNextPageParam: (lastPage) => lastPage.nextUrl || undefined,
-        enabled: debouncedSearch === '' && filtroAtivo === 'Todos',
+            return { details: await fetchDetailsFromUrls(res.data.results.map((p: any) => p.url)), next: res.data.next };
+        }, getNextPageParam: (l) => l.next || undefined, enabled: filtroAtivo === 'all',
     });
 
     const pokemonsExibidos = useMemo(() => {
-        let listaBase: LocalPokemon[] = filtroAtivo !== 'Todos' ? typeData?.pages.flatMap(p => p.details) || []
-        : generalData?.pages.flatMap(p => p.details) || [];
-
+        let listaBase = filtroAtivo !== 'all' ? typeData?.pages.flatMap(p => p.details || []) ?? [] : generalData?.pages.flatMap(p => p.details || []) ?? [];
         const seen = new Set();
-        let listaFiltrada = listaBase.filter(p => seen.has(p.id) ? false : (seen. add(p.id), true)).map(p => ({ ...p }));
-
+        let listaFiltrada = listaBase.filter(p => !seen.has(p.id) && seen.add(p.id));
         if (search.trim() !== '') {
-            const termoBusca = search.toLowerCase().trim();
-            listaFiltrada = listaFiltrada.filter(pokemon => pokemon.nome.toLowerCase().includes(termoBusca) || pokemon.id.toString() === termoBusca);
+            const termo = search.toLowerCase().trim();
+            listaFiltrada = listaFiltrada.filter(p => p.nome.toLowerCase().includes(termo) || p.id.toString().includes(termo));
         }
-        
-        return listaFiltrada;
-
+        return JSON.parse(JSON.stringify(listaFiltrada));
     }, [search, filtroAtivo, typeData, generalData]);
 
-    const navigatingRef = useRef(false);
-    const handleNavigate = useCallback((id: number) => {
-        if (navigatingRef.current) return;
-        navigatingRef.current = true;
-        router.push(`/details/${id}`);
-        setTimeout(() => { navigatingRef.current = false; }, 600);
-    }, [router]);
+    const renderItem = useCallback(({ item }: { item: LocalPokemon }) => (
+        <PokemonCard item={item} isFavorite={favoritesSet.has(item.id)} onPress={() => router.push(`/details/${item.id}`)} onToggleFavorite={() => toggleFavorite({ id: item.id, nome: item.nome, imagemDestaque: item.imagemDestaque })} tTipos={tTipos} colors={colors} />
+    ), [favoritesSet, router, toggleFavorite, tTipos, colors]);
 
-    const renderItem = useCallback(({ item }: { item: LocalPokemon }) => {
-        const isFavorite = favorites.some((fav) => fav.id === item.id);
-        return (
-            <PokemonCard
-                item={item}
-                isFavorite={isFavorite}
-                onPress={() => handleNavigate(item.id)}
-                onToggleFavorite={() => toggleFavorite({ id: item.id, nome: item.nome, imagemDestaque: item.imagemDestaque })}
-            />
-        );
-    }, [favorites, handleNavigate, toggleFavorite]);
-
-    const isLoading = isLoadingType || isLoadingGeneral || isSearching;
-    const isCarregandoMais = isFetchingNextType || isFetchingNextGeneral;
+    const isLoading = filtroAtivo !== 'all' ? il1 : il2;
+    const isCarregandoMais = filtroAtivo !== 'all' ? if1 : if2;
 
     const carregarMais = () => {
-        if (debouncedSearch !== '' || isCarregandoMais) return;
-        if (filtroAtivo !== 'Todos' && hasNextTypePage) fetchNextTypePage();
-        if (filtroAtivo === 'Todos' && hasNextGeneralPage) fetchNextGeneralPage();
+        if (isCarregandoMais || search.trim() !== '') return;
+        if (filtroAtivo !== 'all' && h1) f1();
+        if (filtroAtivo === 'all' && h2) f2();
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.headerVermelho}>
-                <Text style={styles.tituloApp}>Pokédex</Text>
-                <Text style={styles.subtituloApp}>
-                    Pesquise por qualquer Pokémon pelo nome ou número. Filtre por tipo e monte sua coleção de favoritos.
-                </Text>
-                <View style={styles.searchBar}>
-                    <Search size={20} color="#888" style={styles.searchIcon} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Buscar por letra ou número... Ex: Pikachu ou 25"
-                        placeholderTextColor="#888"
-                        value={search}
-                        onChangeText={setSearch}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                    />
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+            <View style={styles.retroHeader}>
+                <View style={styles.headerTop}>
+                    <Text style={styles.retroTitle}>{tComum.pokedex.toUpperCase()}</Text>
+                    <TouchableOpacity style={styles.retroBtnSmall} onPress={toggleLanguage}>
+                        <Text style={styles.retroBtnTextSmall}>{language === 'pt' ? 'SELECT: PT' : 'SELECT: EN'}</Text>
+                    </TouchableOpacity>
                 </View>
+                <TextInput
+                    style={styles.retroInput}
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder={`> ${tLista.buscaPlaceholder.toUpperCase()}`}
+                    placeholderTextColor="#666"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                />
             </View>
 
             <View style={styles.sectionFiltros}>
-                <Text style={styles.sectionTitle}>Tipos de Pokémon</Text>
+                <Text style={[styles.retroSectionTitle, { color: colors.text }]}>[{tLista.tiposTitulo.toUpperCase()}]</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtrosScroll}>
-                    {tiposFiltro.map((tipo, index) => (
+                    {tiposFiltroKeys.map((tipoKey) => (
                         <TouchableOpacity
-                            key={index}
-                            style={[
-                                styles.filtroPill,
-                                filtroAtivo === tipo ? styles.filtroAtivo : styles.filtroInativo
-                            ]}
-                            onPress={() => {
-                                setFiltroAtivo(tipo);
-                                setSearch('');
-                            }}
+                            key={tipoKey}
+                            style={[styles.retroFilterPill, filtroAtivo === tipoKey ? styles.retroFilterActive : { backgroundColor: colors.cardBox }]}
+                            onPress={() => { setFiltroAtivo(tipoKey); setSearch(''); }}
+                            activeOpacity={1}
                         >
-                            <Text style={[
-                                styles.filtroText,
-                                filtroAtivo === tipo ? { color: '#FFF' } : { color: '#444' }
-                            ]}>{tipo}</Text>
+                            <Text style={[styles.retroFilterText, filtroAtivo === tipoKey ? { color: '#FFF' } : { color: colors.text }]}>
+                                {tTipos[tipoKey as keyof typeof tTipos].toUpperCase() || tipoKey.toUpperCase()}
+                            </Text>
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
             </View>
 
-            <View style={styles.listHeader}>
-                <Text style={styles.sectionTitle}>Pokémon Carregados</Text>
-                <Text style={styles.countText}>{pokemonsExibidos.length} visíveis</Text>
-            </View>
-
             {isLoading && pokemonsExibidos.length === 0 ? (
                 <View style={styles.centerContainer}>
-                    <ActivityIndicator size="large" color="#DC0A2D" />
-                    <Text style={{ marginTop: 10, color: '#DC0A2D', fontWeight: 'bold' }}>Sincronizando Pokédex...</Text>
+                    <ActivityIndicator size="large" color="#000" />
+                    <Text style={[styles.retroSectionTitle, { marginTop: 12, color: colors.text }]}>{tLista.carregando.toUpperCase()}</Text>
                 </View>
             ) : (
                 <FlatList
                     data={pokemonsExibidos}
-                    keyExtractor={(item) => item.id.toString()}
+                    keyExtractor={(item) => String(item.id)}
                     renderItem={renderItem}
                     numColumns={2}
                     columnWrapperStyle={styles.row}
                     contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
-                    removeClippedSubviews={true}
-                    maxToRenderPerBatch={10}
-                    windowSize={5}
                     onEndReached={carregarMais}
-                    onEndReachedThreshold={0.5}
-                    ListFooterComponent={
-                        isCarregandoMais ? <ActivityIndicator size="large" color="#DC0A2D" style={{ marginVertical: 20 }} /> : null
-                    }
+                    onEndReachedThreshold={0.4}
+                    showsVerticalScrollIndicator={false}
+                    ListFooterComponent={isCarregandoMais ? <ActivityIndicator size="large" color="#000" style={{ marginVertical: 20 }} /> : null}
                     ListEmptyComponent={
-                        <View style={{ alignItems: 'center', marginTop: 40 }}>
-                            <Text style={{ color: '#888', fontSize: 16 }}>Nenhum Pokémon encontrado.</Text>
+                        <View style={styles.retroEmptyBox}>
+                            <Text style={styles.retroEmptyText}>! {tLista.vazio.toUpperCase()}</Text>
                         </View>
                     }
                 />
@@ -317,175 +203,52 @@ export default function PokemonList() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#FAFAFA',
-    },
-    centerContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    headerVermelho: {
+    container: { flex: 1 },
+    centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    retroHeader: {
         backgroundColor: '#DC0A2D',
-        paddingHorizontal: 20,
-        paddingTop: 40,
-        paddingBottom: 30,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
-        shadowColor: '#DC0A2D',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.3,
-        shadowRadius: 15,
-        elevation: 10,
+        padding: 20,
+        borderBottomWidth: 6,
+        borderColor: '#000',
         marginBottom: 20,
     },
-    tituloApp: {
-        color: '#FFF',
-        fontSize: 32,
-        fontWeight: '900',
-        marginBottom: 10,
+    headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+    retroTitle: { color: '#FFF', fontFamily: retroFont, fontSize: 28, fontWeight: '900', textShadowColor: '#000', textShadowOffset: { width: 3, height: 3 }, textShadowRadius: 0 },
+    retroBtnSmall: { backgroundColor: '#000', paddingHorizontal: 10, paddingVertical: 6, borderWidth: 2, borderColor: '#555' },
+    retroBtnTextSmall: { color: '#FFF', fontFamily: retroFont, fontWeight: 'bold', fontSize: 10 },
+    retroInput: {
+        fontFamily: retroFont, backgroundColor: '#FFF', borderWidth: 4, borderColor: '#000',
+        paddingHorizontal: 15, height: 50, fontSize: 14, fontWeight: 'bold', color: '#000',
+        shadowColor: '#000', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 1, shadowRadius: 0,
     },
-    subtituloApp: {
-        color: '#FFF',
-        fontSize: 14,
-        opacity: 0.9,
-        lineHeight: 20,
-        marginBottom: 20,
+    sectionFiltros: { paddingHorizontal: 20, marginBottom: 15 },
+    retroSectionTitle: { fontFamily: retroFont, fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
+    filtrosScroll: { flexDirection: 'row', paddingBottom: 10 },
+    retroFilterPill: {
+        paddingHorizontal: 12, paddingVertical: 8, marginRight: 10,
+        borderWidth: 3, borderColor: '#000',
+        shadowColor: '#000', shadowOffset: { width: 3, height: 3 }, shadowOpacity: 1, shadowRadius: 0,
     },
-    searchBar: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 30,
-        paddingHorizontal: 15,
-        height: 50,
+    retroFilterActive: { backgroundColor: '#000' },
+    retroFilterText: { fontFamily: retroFont, fontWeight: 'bold', fontSize: 12 },
+    listContent: { paddingHorizontal: 15, paddingBottom: 20 },
+    row: { justifyContent: 'space-between', marginBottom: 20 },
+
+    // O Cartucho Retro
+    retroCard: {
+        flex: 1, marginHorizontal: 6, borderWidth: 4, borderColor: '#000',
+        shadowColor: '#000', shadowOffset: { width: 6, height: 6 }, shadowOpacity: 1, shadowRadius: 0,
     },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 16,
-        color: '#333',
-    },
-    sectionFiltros: {
-        paddingHorizontal: 20,
-        marginBottom: 15,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 10,
-    },
-    filtrosScroll: {
-        flexDirection: 'row',
-        gap: 10,
-        paddingBottom: 10,
-    },
-    filtroPill: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        marginRight: 8,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    filtroAtivo: {
-        backgroundColor: '#333',
-        borderColor: '#333',
-    },
-    filtroInativo: {
-        backgroundColor: '#FFF',
-    },
-    filtroText: {
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-    listHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 10,
-    },
-    countText: {
-        fontSize: 14,
-        color: '#888',
-    },
-    listContent: {
-        paddingHorizontal: 15,
-        paddingBottom: 20,
-    },
-    row: {
-        justifyContent: 'space-between',
-        marginBottom: 15,
-    },
-    cardContainer: {
-        flex: 1,
-        marginHorizontal: 5,
-        borderRadius: 20,
-        paddingTop: 10,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 3,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 12,
-        zIndex: 2,
-    },
-    pokemonId: {
-        fontSize: 14,
-        fontWeight: '900',
-        color: 'rgba(0,0,0,0.4)',
-    },
-    heartButton: {
-        backgroundColor: 'rgba(255,255,255,0.3)',
-        borderRadius: 15,
-        padding: 5,
-    },
-    pokemonImage: {
-        width: 100,
-        height: 100,
-        alignSelf: 'center',
-        marginTop: -10,
-        marginBottom: -20,
-        zIndex: 1,
-    },
-    cardInfoBox: {
-        backgroundColor: '#FFFFFF',
-        paddingTop: 25,
-        paddingBottom: 15,
-        alignItems: 'center',
-        borderBottomLeftRadius: 20,
-        borderBottomRightRadius: 20,
-    },
-    pokemonName: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333',
-        textTransform: 'capitalize',
-        marginBottom: 8,
-    },
-    typesContainer: {
-        flexDirection: 'row',
-        gap: 5,
-    },
-    typePill: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    typeText: {
-        color: '#FFF',
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'capitalize',
-    },
+    retroCardHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 8, borderBottomWidth: 2, borderColor: 'rgba(0,0,0,0.2)' },
+    retroId: { fontFamily: retroFont, fontSize: 12, fontWeight: '900', color: '#000' },
+    retroHeartBtn: { backgroundColor: '#FFF', borderWidth: 2, borderColor: '#000', borderRadius: 0, padding: 3 },
+    retroImageContainer: { height: 90, justifyContent: 'center', alignItems: 'center' },
+    pokemonImage: { width: 80, height: 80 },
+    retroCardInfo: { borderTopWidth: 4, borderColor: '#000', padding: 10, alignItems: 'center' },
+    retroName: { fontFamily: retroFont, fontSize: 14, fontWeight: 'bold', marginBottom: 8, textAlign: 'center' },
+    typesContainer: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', justifyContent: 'center' },
+    retroTypePill: { borderWidth: 2, borderColor: '#000', paddingHorizontal: 6, paddingVertical: 2 },
+    retroTypeText: { fontFamily: retroFont, color: '#FFF', fontSize: 9, fontWeight: 'bold' },
+    retroEmptyBox: { margin: 20, padding: 15, borderWidth: 4, borderColor: '#000', borderStyle: 'dashed', alignItems: 'center' },
+    retroEmptyText: { fontFamily: retroFont, fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
 });
