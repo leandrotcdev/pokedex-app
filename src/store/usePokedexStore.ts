@@ -8,6 +8,8 @@ export interface MinimalPokemon {
     id: number;
     nome: string;
     imagemDestaque: string;
+    corFundo?: string;
+    tipos?: string[];
 }
 
 interface PokedexState {
