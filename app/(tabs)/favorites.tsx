@@ -33,7 +33,7 @@ const PokemonCard = React.memo(({ item, onPress, onToggleFavorite, tTipos, color
                 <Text style={[styles.retroName, { color: colors.text }]} numberOfLines={1}>{item.nome.toUpperCase()}</Text>
                 {tipos.length > 0 && (
                     <View style={styles.typesContainer}>
-                        {tipos.map((tipo: string, i: number) => (
+                        {(item.tipos || []).map((tipo: string, i: number) => (
                             <View key={i} style={[styles.retroTypePill, { backgroundColor: coresTipos[tipo] || '#777' }]}>
                                 <Text style={styles.retroTypeText}>{tTipos[tipo as keyof typeof tTipos] || tipo.toUpperCase()}</Text>
                             </View>
@@ -47,33 +47,51 @@ const PokemonCard = React.memo(({ item, onPress, onToggleFavorite, tTipos, color
 
 export default function Favorites() {
     const router = useRouter();
-    const { favorites, toggleFavorite, theme, toggleTheme, language, toggleLanguage } = usePokedexStore();
+
+    const { favorites = [], toggleFavorite, theme, toggleTheme, language, toggleLanguage } = usePokedexStore();
     const [search, setSearch] = useState('');
 
     const isDark = theme === 'dark';
     const colors = { bg: isDark ? '#222' : '#F0F0F0', text: isDark ? '#FFF' : '#000', cardBox: isDark ? '#333' : '#FFF' };
 
-    const tTipos = dicionario[language].tipos;
-    const textoTitulo = language === 'pt' ? 'FAVORITOS' : 'FAVORITES';
-    const textoBusca = language === 'pt' ? 'BUSCAR FAVORITO...' : 'SEARCH FAVORITE...';
-    const textoVazio = language === 'pt' ? 'NENHUM FAVORITO NA COLEÇÃO.' : 'NO FAVORITES IN COLLECTION.';
+    const safeLanguage = language || 'pt';
+    const tTipos = dicionario[safeLanguage]?.tipos || {};
+
+    const textoTitulo = safeLanguage === 'pt' ? 'FAVORITOS' : 'FAVORITES';
+    const textoBusca = safeLanguage === 'pt' ? 'BUSCAR FAVORITO...' : 'SEARCH FAVORITE...';
+    const textoVazio = safeLanguage === 'pt' ? 'NENHUM FAVORITO NA COLEÇÃO.' : 'NO FAVORITES IN COLLECTION.';
 
     const favoritesExibidos = useMemo(() => {
-        let listaFiltrada = favorites;
+        const listaParaFiltrar = favorites || [];
         if (search.trim() !== '') {
             const termo = search.toLowerCase().trim();
-            listaFiltrada = listaFiltrada.filter(pokemon => pokemon.nome.toLowerCase().includes(termo) || pokemon.id.toString().includes(termo));
+            return listaParaFiltrar.filter(pokemon =>
+                pokemon.nome.toLowerCase().includes(termo) ||
+                pokemon.id.toString().includes(termo)
+            );
         }
-        return JSON.parse(JSON.stringify(listaFiltrada));
+        return listaParaFiltrar;
     }, [search, favorites]);
 
-    const renderItem = useCallback(({ item }: { item: any }) => (
-        <PokemonCard item={item} onPress={() => router.push(`/details/${item.id}`)} onToggleFavorite={() => toggleFavorite(item)} tTipos={tTipos} colors={colors} />
-    ), [router, toggleFavorite, tTipos, colors]);
+    const renderItem = useCallback(({ item }: { item: any }) => {
+        if (!item) return null;
+
+        return (
+            <PokemonCard
+                item={{
+                    ...item,
+                    tipos: item.tipos || []
+                }}
+                onPress={() => router.push(`/details/${item.id}`)}
+                onToggleFavorite={() => toggleFavorite(item)}
+                tTipos={tTipos}
+                colors={colors}
+            />
+        );
+    }, [router, toggleFavorite, tTipos, colors]);
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-            {/* BOTÕES GLOBAIS DE CONFIGURAÇÃO */}
             <View style={styles.retroTopBar}>
                 <TouchableOpacity style={styles.retroBtnSmall} onPress={toggleLanguage} activeOpacity={0.8}>
                     <Text style={styles.retroBtnTextSmall}>{language === 'pt' ? 'SELECT: PT' : 'SELECT: EN'}</Text>
@@ -100,12 +118,18 @@ export default function Favorites() {
             </View>
 
             <FlatList
-                data={JSON.parse(JSON.stringify(favoritesExibidos))}
+                data={[...favoritesExibidos]}
+                key={theme}
                 keyExtractor={(item) => String(item.id)}
                 renderItem={renderItem}
                 numColumns={2}
-                columnWrapperStyle={styles.row}
-                contentContainerStyle={styles.listContent}
+                columnWrapperStyle={{
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 10,
+                    marginBottom: 20
+                }}
+                contentContainerStyle={{ paddingBottom: 40 }}
+                removeClippedSubviews={false}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
                     <View style={styles.retroEmptyBox}>

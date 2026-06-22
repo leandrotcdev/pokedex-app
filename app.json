@@ -18,6 +18,7 @@
       "bundleIdentifier": "com.leandrotcdev.pokedexapp"
     },
     "android": {
+      "jsEngine": "hermes", 
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#CC0000"
