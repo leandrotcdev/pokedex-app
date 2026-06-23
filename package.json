@@ -36,9 +36,11 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@babel/plugin-syntax-import-meta": "^7.10.4",
     "@react-native-community/cli": "^20.1.3",
     "@types/react": "~19.1.0",
     "@types/react-native": "^0.72.8",
+    "babel-plugin-transform-import-meta": "^2.3.3",
     "babel-preset-expo": "~54.0.10",
     "typescript": "~5.9.2"
   },

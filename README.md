@@ -1,4 +1,4 @@
-# 📱 Pokédex App - React Native e Expo (Serratec)
+# 📱 Pokédex App - React Native e Expo (Serratec 2026)
 
 Este é um projeto de uma aplicação móvel estilo "Pokédex", desenvolvida como parte da Residência em TIC Software (Serratec). O aplicativo consome a [PokeAPI](https://pokeapi.co/) para exibir informações detalhadas sobre os Pokémon, oferecendo uma experiência nostálgica com design retrô.
 
@@ -30,10 +30,32 @@ Projeto Pokédex (React Native + Expo). Este projeto foi desenvolvido como um tr
 Desafios Extras ImplementadosAlém dos requisitos obrigatórios, foram implementados:  Busca por nome: Adição de um campo de busca (TextInput) na tela principal para filtrar automaticamente os Pokémons usando useState.  Geração de APK: Configuração do eas.json para geração do arquivo APK de produção via EAS Build.
 
 ### 🛠️ Principais Recursos Implementados e Funcionalidades 🚀
-* **Consumo de API:** Integração completa com os endpoints da PokeAPI para requisição e tratamento de dados em tempo real.
-* **Interface Dinâmica & Performance:** Renderização otimizada da listagem principal através do componente `FlatList`.
-* **Filtro de Busca Inteligente:** Sistema de pesquisa dinâmica que permite filtrar Pokémons pelo nome instantaneamente sem realizar novas requisições desnecessárias à API.
-* **Navegação Dinâmica:** Fluxo de rotas bem estruturado para transição entre a listagem principal e a tela de detalhes de cada pokémon.
+- **Listagem Dinâmica:** Visualização de todos os Pokémon com carregamento infinito (*infinite scroll*).
+- **Busca Global:** Filtro por nome ou número do Pokémon.
+- **Filtros por Tipo:** Navegação facilitada por categorias (Fogo, Água, Grama, etc.).
+- **Favoritos:** Sistema de persistência de dados para salvar seus Pokémon preferidos.
+- **Experiência do Usuário:**
+  - Alternância de temas (Light/Dark Mode).
+  - Suporte a múltiplos idiomas (Português/Inglês).
+  - Leitura em áudio das informações do Pokémon (Text-to-Speech).
+- **Design Retrô Gameboy:** Interface inspirada nos consoles clássicos de jogos.
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+Este projeto foi construído utilizando as ferramentas mais modernas do ecossistema React Native/Expo:
+
+- **Framework:** [React Native](https://reactnative.dev/) com [Expo](https://expo.dev/).
+- **Gerenciamento de Estado:** [Zustand](https://zustand-demo.pmnd.rs/) para estados globais e persistência.
+- **Data Fetching:** [React Query](https://tanstack.com/query/latest) para cache e sincronização de dados.
+- **Navegação:** [Expo Router](https://docs.expo.dev/router/introduction/) (Baseado em arquivos).
+- **Consumo de API:** [Axios](https://axios-http.com/).
+- **Estilização:** StyleSheet nativo com design System personalizado.
+- **Ícones:** [Lucide React Native](https://lucide.dev/).
+- **Comunicação Nativa:** [Expo Speech](https://docs.expo.dev/versions/latest/sdk/speech/).
+
+---
 
 ---
 

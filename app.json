@@ -7,18 +7,18 @@
     "icon": "./assets/images/icon.png",
     "scheme": "pokedexapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#CC0000"
     },
     "ios": {
+      "jsEngine": "hermes",
       "supportsTablet": true,
       "bundleIdentifier": "com.leandrotcdev.pokedexapp"
     },
     "android": {
-      "jsEngine": "hermes", 
+      "jsEngine": "hermes",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#CC0000"
